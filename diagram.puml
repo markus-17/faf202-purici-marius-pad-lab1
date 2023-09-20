@@ -1,0 +1,27 @@
+@startuml System Architecture
+
+[API Gateway (JS)] as AG
+database "Cache" as CACHE
+[Service Discovery (JS)] as SD
+
+[User Service (Python)] as US
+database "User DB" as UDB
+
+[Tweet Service (Python)] as TS
+database "Tweet DB" as TDB
+
+US <--> TS : API
+
+AG -left- CACHE
+AG --> US : API
+AG --> TS : API
+
+US -down- UDB
+TS -down- TDB
+
+AG .> SD
+
+SD <.. US
+SD <.. TS
+
+@enduml
