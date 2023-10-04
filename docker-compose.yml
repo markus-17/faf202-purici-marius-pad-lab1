@@ -14,6 +14,11 @@ services:
       - ./database/user_init.sql:/docker-entrypoint-initdb.d/user_init.sql
       - ./database/tweet_init.sql:/docker-entrypoint-initdb.d/tweet_init.sql
 
+  services:
+    image: redis:7.2
+    ports:
+      - "6379:6379"
+
 volumes:
   postgres_data:
     driver: local

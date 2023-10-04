@@ -1,8 +1,9 @@
-const express = require('express');
-const axios = require('axios');
-const bodyParser = require('body-parser');
-const swaggerUi = require('swagger-ui-express');
-const swaggerJsdoc = require('swagger-jsdoc');
+import express from 'express';
+import axios from 'axios';
+import bodyParser from 'body-parser';
+import swaggerUi from 'swagger-ui-express';
+import swaggerJsdoc from 'swagger-jsdoc';
+import redis from 'redis';
 
 const app = express();
 const port = 8002;
@@ -10,6 +11,16 @@ const userService = 'http://localhost:8000';
 const tweetService = 'http://localhost:8001';
 
 app.use(bodyParser.json());
+
+
+const redisClient = redis.createClient();
+redisClient.on('error', (err) => { console.log('Error connecting to Redis:', err); });
+redisClient.on('connect', () => { console.log('Connected to Redis'); });
+redisClient.on('ready', () => { console.log('Redis client is ready'); });
+redisClient.on('reconnecting', () => { console.log('Redis client is reconnecting'); });
+process.on('exit', () => { redisClient.quit(); });
+await redisClient.connect();
+
 
 // Swagger setup
 const options = {
