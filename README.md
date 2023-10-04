@@ -63,6 +63,9 @@ When planning my **Twitter-like** system I made the following decisions:
 
 Each service is going to have its own database. For both services, I plan on using relational databases (at the time of writing I haven't decided on the specific RDBMS). Since I have decided that inter-service communication will be enabled by the **RESTful API** the service provides, here is a list of potential endpoints for each service along with the data that would be transferred:
 
+<!-- maybe remove stuff related to user authentication and registration -->
+`The teacher suggested to remove endpoints related to user authentication and registration.`
+
 * **User Service**: 
     1. `POST /users/register`
         * Request Body: `{ "username": string, "password": string }`
