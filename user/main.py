@@ -23,6 +23,11 @@ def get_db():
         db.close()
 
 
+@app.get("/status")
+def read_status():
+    return {"status": "OK"}
+
+
 @app.post("/users/register", response_model=UserInDB)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.username == user.username).first()
@@ -88,7 +93,8 @@ def get_followings(userId: int, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    followings = db.query(Followings).filter(Followings.follower_id == userId).all()
+    followings = db.query(Followings).filter(
+        Followings.follower_id == userId).all()
     followings_ids = [following.followed_id for following in followings]
 
     return {"followings": followings_ids}
@@ -100,7 +106,8 @@ def get_followers(userId: int, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    followers = db.query(Followings).filter(Followings.followed_id == userId).all()
+    followers = db.query(Followings).filter(
+        Followings.followed_id == userId).all()
     followers_ids = [follower.follower_id for follower in followers]
 
     return {"followers": followers_ids}

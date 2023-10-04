@@ -26,6 +26,11 @@ def get_db():
         db.close()
 
 
+@app.get("/status")
+def read_status():
+    return {"status": "OK"}
+
+
 @app.post("/tweets", response_model=TweetOut)
 def create_tweet(tweet: TweetIn, db: Session = Depends(get_db)):
     new_tweet = Tweet(user_id=tweet.userId, content=tweet.content)
