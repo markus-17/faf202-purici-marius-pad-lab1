@@ -1,0 +1,18 @@
+version: '3.1'
+
+services:
+  db:
+    image: postgres:16.0
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: toor
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+      - ./database/user_init.sql:/docker-entrypoint-initdb.d/user_init.sql
+
+volumes:
+  postgres_data:
+    driver: local
