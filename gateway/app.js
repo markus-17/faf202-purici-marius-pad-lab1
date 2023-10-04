@@ -118,6 +118,10 @@ app.post('/users/:userId/follow', async (req, res) => {
     try {
         const response = await axios.post(`${userService}/users/${req.params.userId}/follow`, req.body);
         res.json(response.data);
+        await redisClient.set(`/users/${req.params.userId}/followings`, '');
+        if(req.body.followUserId !== null) {
+            await redisClient.set(`/users/${req.body.followUserId}/followers`, '');
+        }
     } catch (error) {
         res.status(error.response.status).json(error.response.data);
     }
@@ -162,6 +166,10 @@ app.delete('/users/:userId/unfollow', async (req, res) => {
     try {
         const response = await axios.delete(`${userService}/users/${req.params.userId}/unfollow`, { data: req.body });
         res.json(response.data);
+        await redisClient.set(`/users/${req.params.userId}/followings`, '');
+        if(req.body.unfollowUserId !== null) {
+            await redisClient.set(`/users/${req.body.unfollowUserId}/followers`, '');
+        }
     } catch (error) {
         res.status(error.response.status).json(error.response.data);
     }
@@ -197,9 +205,16 @@ app.delete('/users/:userId/unfollow', async (req, res) => {
  *         description: User not found.
  */
 app.get('/users/:userId/followings', async (req, res) => {
+    const response = await redisClient.get(`/users/${req.params.userId}/followings`)
+    if(response) {
+        res.set({'X-Cache': 'HIT'}).json(JSON.parse(response));
+        return
+    }
+
     try {
         const response = await axios.get(`${userService}/users/${req.params.userId}/followings`);
-        res.json(response.data);
+        res.set({'X-Cache': 'MISS'}).json(response.data);
+        await redisClient.set(`/users/${req.params.userId}/followings`, JSON.stringify(response.data));
     } catch (error) {
         res.status(error.response.status).json(error.response.data);
     }
@@ -235,9 +250,16 @@ app.get('/users/:userId/followings', async (req, res) => {
  *         description: User not found.
  */
 app.get('/users/:userId/followers', async (req, res) => {
+    const response = await redisClient.get(`/users/${req.params.userId}/followers`)
+    if(response) {
+        res.set({'X-Cache': 'HIT'}).json(JSON.parse(response));
+        return
+    }
+
     try {
         const response = await axios.get(`${userService}/users/${req.params.userId}/followers`);
-        res.json(response.data);
+        res.set({'X-Cache': 'MISS'}).json(response.data);
+        await redisClient.set(`/users/${req.params.userId}/followers`, JSON.stringify(response.data));
     } catch (error) {
         res.status(error.response.status).json(error.response.data);
     }
