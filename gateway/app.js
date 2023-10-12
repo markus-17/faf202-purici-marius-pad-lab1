@@ -39,6 +39,27 @@ const options = {
 const specs = swaggerJsdoc(options);
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs));
 
+
+app.get('/users/timeout', async (req, res) => {
+    try {
+        const response = await axios.get(`${userService}/users/timeout`, req.body);
+        res.json(response.data);
+    } catch (error) {
+        res.status(error.response.status).json(error.response.data);
+    }
+});
+
+
+app.get('/tweets/timeout', async (req, res) => {
+    try {
+        const response = await axios.get(`${tweetService}/tweets/timeout`, req.body);
+        res.json(response.data);
+    } catch (error) {
+        res.status(error.response.status).json(error.response.data);
+    }
+});
+
+
 /**
  * @swagger
  * /users/register:

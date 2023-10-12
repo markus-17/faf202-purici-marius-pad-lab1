@@ -1,5 +1,8 @@
+import asyncio
+
 import requests
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -24,6 +27,26 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+TIMEOUT_SECONDS = 5
+
+
+@app.middleware("http")
+async def timeout_middleware(request, call_next):
+    try:
+        # Call the next middleware/route handler with a timeout
+        response = await asyncio.wait_for(call_next(request), timeout=TIMEOUT_SECONDS)
+        return response
+    except asyncio.TimeoutError:
+        return JSONResponse(status_code=408, content={"error": "Request timed out"})
+
+
+@app.get("/tweets/timeout")
+def timeout():
+    import time
+    time.sleep(TIMEOUT_SECONDS + 1)
+    return {"status": "OK"}
 
 
 @app.get("/status")
