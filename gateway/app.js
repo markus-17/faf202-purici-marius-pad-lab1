@@ -1,86 +1,88 @@
-import express from 'express';
-import axios from 'axios';
-import bodyParser from 'body-parser';
-import swaggerUi from 'swagger-ui-express';
-import swaggerJsdoc from 'swagger-jsdoc';
-import redis from 'redis';
+import express from 'express'
+import axios from 'axios'
+import bodyParser from 'body-parser'
+import swaggerUi from 'swagger-ui-express'
+import swaggerJsdoc from 'swagger-jsdoc'
+import redis from 'redis'
 
-const app = express();
-const port = 8002;
-const userService = 'http://localhost:8000';
-const tweetService = 'http://localhost:8001';
+const app = express()
+const port = 8002
+const userService = 'http://localhost:8000'
+const tweetService = 'http://localhost:8001'
 
-app.use(bodyParser.json());
+app.use(bodyParser.json())
 
+const redisHost = process.env.REDIS_HOST || 'localhost'
+console.log(`Redis Host has been resolved to "${redisHost}"`)
 
-const redisClient = redis.createClient();
-redisClient.on('error', (err) => { console.log('Error connecting to Redis:', err); });
-redisClient.on('connect', () => { console.log('Connected to Redis'); });
-redisClient.on('ready', () => { console.log('Redis client is ready'); });
-redisClient.on('reconnecting', () => { console.log('Redis client is reconnecting'); });
-process.on('exit', () => { redisClient.quit(); });
-await redisClient.connect();
+const redisClient = redis.createClient({
+  socket: {
+    host: redisHost,
+    port: 6379
+  }
+})
 
+redisClient.on('error', (err) => { console.log('Error connecting to Redis:', err) })
+redisClient.on('connect', () => { console.log('Connected to Redis') })
+redisClient.on('ready', () => { console.log('Redis client is ready') })
+redisClient.on('reconnecting', () => { console.log('Redis client is reconnecting') })
+process.on('exit', () => { redisClient.quit() })
+await redisClient.connect()
 
 // Swagger setup
 const options = {
-    definition: {
-        openapi: '3.0.0',
-        info: {
-            title: 'Express API with Swagger',
-            version: '1.0.0',
-        },
-    },
-    // Path to the API docs
-    apis: ['./app.js'], // files containing annotations as above
-};
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Express API with Swagger',
+      version: '1.0.0'
+    }
+  },
+  // Path to the API docs
+  apis: ['./app.js'] // files containing annotations as above
+}
 
+const specs = swaggerJsdoc(options)
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs))
 
-const specs = swaggerJsdoc(options);
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs));
-
-
-const LIMIT = 3;
-const WINDOW_MS = 10 * 1000; // 10 seconds
-let requestsDateTime = [];
+const LIMIT = 3
+const WINDOW_MS = 10 * 1000 // 10 seconds
+let requestsDateTime = []
 
 app.use((req, res, next) => {
-    let currentDateTime = Date.now();
-    requestsDateTime = requestsDateTime.filter(dateTime => (currentDateTime - dateTime) <= WINDOW_MS);
+  const currentDateTime = Date.now()
+  requestsDateTime = requestsDateTime.filter(dateTime => (currentDateTime - dateTime) <= WINDOW_MS)
 
-    if(requestsDateTime.length >= LIMIT) {
-        console.log(`rateLimiterMiddleware: 429 ${currentDateTime} [${requestsDateTime}]`);
-        res.status(429).send({
-            'message': 'Too many requests, please try again after some time.'
-        });
-        return;
-    }
-    
-    requestsDateTime.push(currentDateTime);
-    console.log(`rateLimiterMiddleware: ${currentDateTime} [${requestsDateTime}]`);
-    next();
-});
+  if (requestsDateTime.length >= LIMIT) {
+    console.log(`rateLimiterMiddleware: 429 ${currentDateTime} [${requestsDateTime}]`)
+    res.status(429).send({
+      message: 'Too many requests, please try again after some time.'
+    })
+    return
+  }
 
+  requestsDateTime.push(currentDateTime)
+  console.log(`rateLimiterMiddleware: ${currentDateTime} [${requestsDateTime}]`)
+  next()
+})
 
 app.get('/users/timeout', async (req, res) => {
-    try {
-        const response = await axios.get(`${userService}/users/timeout`, req.body);
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response.status).json(error.response.data);
-    }
-});
-
+  try {
+    const response = await axios.get(`${userService}/users/timeout`, req.body)
+    res.json(response.data)
+  } catch (error) {
+    res.status(error.response.status).json(error.response.data)
+  }
+})
 
 app.get('/tweets/timeout', async (req, res) => {
-    try {
-        const response = await axios.get(`${tweetService}/tweets/timeout`, req.body);
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response.status).json(error.response.data);
-    }
-});
-
+  try {
+    const response = await axios.get(`${tweetService}/tweets/timeout`, req.body)
+    res.json(response.data)
+  } catch (error) {
+    res.status(error.response.status).json(error.response.data)
+  }
+})
 
 /**
  * @swagger
@@ -114,14 +116,13 @@ app.get('/tweets/timeout', async (req, res) => {
  *         description: Username already registered
  */
 app.post('/users/register', async (req, res) => {
-    try {
-        const response = await axios.post(`${userService}/users/register`, req.body);
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response.status).json(error.response.data);
-    }
-});
-
+  try {
+    const response = await axios.post(`${userService}/users/register`, req.body)
+    res.json(response.data)
+  } catch (error) {
+    res.status(error.response.status).json(error.response.data)
+  }
+})
 
 /**
  * @swagger
@@ -158,18 +159,17 @@ app.post('/users/register', async (req, res) => {
  *         description: User not found or User to follow not found
  */
 app.post('/users/:userId/follow', async (req, res) => {
-    try {
-        const response = await axios.post(`${userService}/users/${req.params.userId}/follow`, req.body);
-        res.json(response.data);
-        await redisClient.set(`/users/${req.params.userId}/followings`, '');
-        if(req.body.followUserId !== null) {
-            await redisClient.set(`/users/${req.body.followUserId}/followers`, '');
-        }
-    } catch (error) {
-        res.status(error.response.status).json(error.response.data);
+  try {
+    const response = await axios.post(`${userService}/users/${req.params.userId}/follow`, req.body)
+    res.json(response.data)
+    await redisClient.set(`/users/${req.params.userId}/followings`, '')
+    if (req.body.followUserId !== null) {
+      await redisClient.set(`/users/${req.body.followUserId}/followers`, '')
     }
-});
-
+  } catch (error) {
+    res.status(error.response.status).json(error.response.data)
+  }
+})
 
 /**
  * @swagger
@@ -206,18 +206,17 @@ app.post('/users/:userId/follow', async (req, res) => {
  *         description: User not found, User to unfollow not found, or No follow found
  */
 app.delete('/users/:userId/unfollow', async (req, res) => {
-    try {
-        const response = await axios.delete(`${userService}/users/${req.params.userId}/unfollow`, { data: req.body });
-        res.json(response.data);
-        await redisClient.set(`/users/${req.params.userId}/followings`, '');
-        if(req.body.unfollowUserId !== null) {
-            await redisClient.set(`/users/${req.body.unfollowUserId}/followers`, '');
-        }
-    } catch (error) {
-        res.status(error.response.status).json(error.response.data);
+  try {
+    const response = await axios.delete(`${userService}/users/${req.params.userId}/unfollow`, { data: req.body })
+    res.json(response.data)
+    await redisClient.set(`/users/${req.params.userId}/followings`, '')
+    if (req.body.unfollowUserId !== null) {
+      await redisClient.set(`/users/${req.body.unfollowUserId}/followers`, '')
     }
-});
-
+  } catch (error) {
+    res.status(error.response.status).json(error.response.data)
+  }
+})
 
 /**
  * @swagger
@@ -248,21 +247,20 @@ app.delete('/users/:userId/unfollow', async (req, res) => {
  *         description: User not found.
  */
 app.get('/users/:userId/followings', async (req, res) => {
-    const response = await redisClient.get(`/users/${req.params.userId}/followings`)
-    if(response) {
-        res.set({'X-Cache': 'HIT'}).json(JSON.parse(response));
-        return
-    }
+  const response = await redisClient.get(`/users/${req.params.userId}/followings`)
+  if (response) {
+    res.set({ 'X-Cache': 'HIT' }).json(JSON.parse(response))
+    return
+  }
 
-    try {
-        const response = await axios.get(`${userService}/users/${req.params.userId}/followings`);
-        res.set({'X-Cache': 'MISS'}).json(response.data);
-        await redisClient.set(`/users/${req.params.userId}/followings`, JSON.stringify(response.data));
-    } catch (error) {
-        res.status(error.response.status).json(error.response.data);
-    }
-});
-
+  try {
+    const response = await axios.get(`${userService}/users/${req.params.userId}/followings`)
+    res.set({ 'X-Cache': 'MISS' }).json(response.data)
+    await redisClient.set(`/users/${req.params.userId}/followings`, JSON.stringify(response.data))
+  } catch (error) {
+    res.status(error.response.status).json(error.response.data)
+  }
+})
 
 /**
  * @swagger
@@ -293,21 +291,20 @@ app.get('/users/:userId/followings', async (req, res) => {
  *         description: User not found.
  */
 app.get('/users/:userId/followers', async (req, res) => {
-    const response = await redisClient.get(`/users/${req.params.userId}/followers`)
-    if(response) {
-        res.set({'X-Cache': 'HIT'}).json(JSON.parse(response));
-        return
-    }
+  const response = await redisClient.get(`/users/${req.params.userId}/followers`)
+  if (response) {
+    res.set({ 'X-Cache': 'HIT' }).json(JSON.parse(response))
+    return
+  }
 
-    try {
-        const response = await axios.get(`${userService}/users/${req.params.userId}/followers`);
-        res.set({'X-Cache': 'MISS'}).json(response.data);
-        await redisClient.set(`/users/${req.params.userId}/followers`, JSON.stringify(response.data));
-    } catch (error) {
-        res.status(error.response.status).json(error.response.data);
-    }
-});
-
+  try {
+    const response = await axios.get(`${userService}/users/${req.params.userId}/followers`)
+    res.set({ 'X-Cache': 'MISS' }).json(response.data)
+    await redisClient.set(`/users/${req.params.userId}/followers`, JSON.stringify(response.data))
+  } catch (error) {
+    res.status(error.response.status).json(error.response.data)
+  }
+})
 
 /**
  * @swagger
@@ -350,14 +347,13 @@ app.get('/users/:userId/followers', async (req, res) => {
  *                   description: The timestamp when the tweet was created.
  */
 app.post('/tweets', async (req, res) => {
-    try {
-        const response = await axios.post(`${tweetService}/tweets`, req.body);
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response.status).json(error.response.data);
-    }
-});
-
+  try {
+    const response = await axios.post(`${tweetService}/tweets`, req.body)
+    res.json(response.data)
+  } catch (error) {
+    res.status(error.response.status).json(error.response.data)
+  }
+})
 
 /**
  * @swagger
@@ -386,14 +382,13 @@ app.post('/tweets', async (req, res) => {
  *         description: Tweet not found.
  */
 app.delete('/tweets/:tweetId', async (req, res) => {
-    try {
-        const response = await axios.delete(`${tweetService}/tweets/${req.params.tweetId}`);
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response.status).json(error.response.data);
-    }
-});
-
+  try {
+    const response = await axios.delete(`${tweetService}/tweets/${req.params.tweetId}`)
+    res.json(response.data)
+  } catch (error) {
+    res.status(error.response.status).json(error.response.data)
+  }
+})
 
 /**
  * @swagger
@@ -437,14 +432,13 @@ app.delete('/tweets/:tweetId', async (req, res) => {
  *         description: Error occurred while fetching followings.
  */
 app.get('/tweets/homeTimeline/:userId', async (req, res) => {
-    try {
-        const response = await axios.get(`${tweetService}/tweets/homeTimeline/${req.params.userId}`);
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response.status).json(error.response.data);
-    }
-});
-
+  try {
+    const response = await axios.get(`${tweetService}/tweets/homeTimeline/${req.params.userId}`)
+    res.json(response.data)
+  } catch (error) {
+    res.status(error.response.status).json(error.response.data)
+  }
+})
 
 /**
  * @swagger
@@ -486,14 +480,13 @@ app.get('/tweets/homeTimeline/:userId', async (req, res) => {
  *                         description: The timestamp when the tweet was created.
  */
 app.get('/tweets/userTimeline/:userId', async (req, res) => {
-    try {
-        const response = await axios.get(`${tweetService}/tweets/userTimeline/${req.params.userId}`);
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response.status).json(error.response.data);
-    }
-});
-
+  try {
+    const response = await axios.get(`${tweetService}/tweets/userTimeline/${req.params.userId}`)
+    res.json(response.data)
+  } catch (error) {
+    res.status(error.response.status).json(error.response.data)
+  }
+})
 
 // Start the gateway server
-app.listen(port, () => console.log(`Gateway running on port ${port}`));
+app.listen(port, () => console.log(`Gateway running on port ${port}`))
