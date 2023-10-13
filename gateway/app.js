@@ -40,6 +40,28 @@ const specs = swaggerJsdoc(options);
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 
+const LIMIT = 3;
+const WINDOW_MS = 10 * 1000; // 10 seconds
+let requestsDateTime = [];
+
+app.use((req, res, next) => {
+    let currentDateTime = Date.now();
+    requestsDateTime = requestsDateTime.filter(dateTime => (currentDateTime - dateTime) <= WINDOW_MS);
+
+    if(requestsDateTime.length >= LIMIT) {
+        console.log(`rateLimiterMiddleware: 429 ${currentDateTime} [${requestsDateTime}]`);
+        res.status(429).send({
+            'message': 'Too many requests, please try again after some time.'
+        });
+        return;
+    }
+    
+    requestsDateTime.push(currentDateTime);
+    console.log(`rateLimiterMiddleware: ${currentDateTime} [${requestsDateTime}]`);
+    next();
+});
+
+
 app.get('/users/timeout', async (req, res) => {
     try {
         const response = await axios.get(`${userService}/users/timeout`, req.body);
