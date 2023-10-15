@@ -45,10 +45,16 @@ const options = {
 const specs = swaggerJsdoc(options)
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs))
 
+// Status Endpoint for gateway
+app.get('/status', (req, res) => {
+  res.status(200).json({ status: 'OK' })
+})
+
 const LIMIT = 3
 const WINDOW_MS = 10 * 1000 // 10 seconds
 let requestsDateTime = []
 
+// Rate Limiter Middleware
 app.use((req, res, next) => {
   const currentDateTime = Date.now()
   requestsDateTime = requestsDateTime.filter(dateTime => (currentDateTime - dateTime) <= WINDOW_MS)
