@@ -1,3 +1,4 @@
+import os
 import asyncio
 
 import requests
@@ -10,7 +11,9 @@ from models import Tweet, Base
 from schemas import TweetIn, TweetOut, Message, HomeTimeline, UserTimeline
 from schemas import Tweet as schemasTweet
 
-DATABASE_URL = "postgresql://root:toor@localhost:5432/tweetdb"
+DB_HOST = os.getenv('DB_HOST') or 'localhost'
+DB_PORT = os.getenv('DB_PORT') or '5432'
+DATABASE_URL = f"postgresql://root:toor@{DB_HOST}:{DB_PORT}/tweetdb"
 USERSERVICE_URL = 'http://localhost:8000'
 
 engine = create_engine(DATABASE_URL)

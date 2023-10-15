@@ -1,3 +1,4 @@
+import os
 import asyncio
 
 from fastapi import FastAPI, Depends, HTTPException
@@ -8,7 +9,9 @@ from sqlalchemy.orm import sessionmaker, Session
 from models import User, Base, Followings
 from schemas import UserInDB, UserCreate, FollowCreate, FollowResponse, UnfollowCreate, FollowingsResponse, FollowersResponse
 
-DATABASE_URL = "postgresql://root:toor@localhost:5432/userdb"
+DB_HOST = os.getenv('DB_HOST') or 'localhost'
+DB_PORT = os.getenv('DB_PORT') or '5432'
+DATABASE_URL = f"postgresql://root:toor@{DB_HOST}:{DB_PORT}/userdb"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

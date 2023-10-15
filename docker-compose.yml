@@ -13,11 +13,44 @@ services:
       - ./postgres_data:/var/lib/postgresql/data
       - ./database/user_init.sql:/docker-entrypoint-initdb.d/user_init.sql
       - ./database/tweet_init.sql:/docker-entrypoint-initdb.d/tweet_init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root"]
+      interval: 20s
+      timeout: 15s
+      retries: 5
 
   service_discovery:
     build: service_discovery
     ports:
       - "8040:8040"
+
+  user_service:
+    build: user
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      service_discovery:
+        condition: service_started
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+
+  tweet_service:
+    build: tweet
+    ports:
+      - "8001:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+      service_discovery:
+        condition: service_started
+      user_service:
+        condition: service_started
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
 
   gateway:
     build: gateway
