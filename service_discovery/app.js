@@ -22,4 +22,4 @@ app.get('/services', (req, res) => {
 })
 
 // Start the service discovery server
-app.listen(port, () => console.log(`Gateway running on port ${port}`))
+app.listen(port, () => console.log(`Service Discovery running on port ${port}`))
