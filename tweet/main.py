@@ -39,9 +39,6 @@ SERVICE_DISCOVERY_URL = f"http://{SERVICE_DISCOVERY_HOST}:{SERVICE_DISCOVERY_POR
 # Self Settings
 SELF_HOST = os.getenv('HOSTNAME') or 'localhost'
 SELF_PORT = os.getenv('SELF_PORT') or '8001'
-
-
-USERSERVICE_URL = 'http://localhost:8000'
 TIMEOUT_SECONDS = 5
 
 app = FastAPI()
@@ -113,7 +110,20 @@ def delete_tweet(tweetId: int, db: Session = Depends(get_db)):
 
 @app.get("/tweets/homeTimeline/{userId}", response_model=HomeTimeline)
 def get_home_timeline(userId: int, db: Session = Depends(get_db)):
-    response = requests.get(f"{USERSERVICE_URL}/users/{userId}/followings")
+    # Get service discovery data
+    service_discovery_response = requests.get(f"{SERVICE_DISCOVERY_URL}/services")
+    service_discovery_data = service_discovery_response.json()
+
+    # Extract userServices and construct USERSERVICE_URL
+    user_services = service_discovery_data.get('userServices', [])
+    if not user_services:
+        raise HTTPException(status_code=400, detail="No user services available.")
+    
+    first_user_service = user_services[0]
+    userservice_url = f"http://{first_user_service['host']}:{first_user_service['port']}"
+    
+    # Fetch followings
+    response = requests.get(f"{userservice_url}/users/{userId}/followings")
 
     if response.status_code != 200:
         raise HTTPException(
