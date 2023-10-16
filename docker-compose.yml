@@ -129,6 +129,8 @@ services:
       - service_discovery
     environment:
       - REDIS_HOST=redis
+      - RATE_LIMITER_LIMIT=3
+      - RATE_LIMITER_WINDOW_S=10
 
   redis:
     image: redis:7.2

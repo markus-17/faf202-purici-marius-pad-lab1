@@ -50,8 +50,8 @@ app.get('/status', (req, res) => {
   res.status(200).json({ status: 'OK' })
 })
 
-const LIMIT = 3
-const WINDOW_MS = 10 * 1000 // 10 seconds
+const LIMIT = process.env.RATE_LIMITER_LIMIT ? parseInt(process.env.RATE_LIMITER_LIMIT) : 3
+const WINDOW_MS = (process.env.RATE_LIMITER_WINDOW_S ? parseInt(process.env.RATE_LIMITER_WINDOW_S) : 10) * 1000
 let requestsDateTime = []
 
 // Rate Limiter Middleware
