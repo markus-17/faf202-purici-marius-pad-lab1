@@ -1,14 +1,18 @@
 import os
 import asyncio
 
+import requests
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from models import User, Base, Followings
-from schemas import UserInDB, UserCreate, FollowCreate, FollowResponse, UnfollowCreate, FollowingsResponse, FollowersResponse
+from schemas import UserInDB, UserCreate, FollowCreate, FollowResponse
+from schemas import UnfollowCreate, FollowingsResponse, FollowersResponse
 
+
+# Database Connection Settings
 DB_HOST = os.getenv('DB_HOST') or 'localhost'
 DB_PORT = os.getenv('DB_PORT') or '5432'
 DATABASE_URL = f"postgresql://root:toor@{DB_HOST}:{DB_PORT}/userdb"
@@ -18,9 +22,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
-
-
 def get_db():
     db = SessionLocal()
     try:
@@ -29,7 +30,35 @@ def get_db():
         db.close()
 
 
+# Service Discovery Connection Settings
+SERVICE_DISCOVERY_HOST = os.getenv('SERVICE_DISCOVERY_HOST') or 'localhost'
+SERVICE_DISCOVERY_PORT = os.getenv('SERVICE_DISCOVERY_PORT') or '8040'
+SERVICE_DISCOVERY_URL = f"http://{SERVICE_DISCOVERY_HOST}:{SERVICE_DISCOVERY_PORT}"
+
+
+# Self Settings
+SELF_HOST = os.getenv('HOSTNAME') or 'localhost'
+SELF_PORT = os.getenv('SELF_PORT') or '8000'
+
+
 TIMEOUT_SECONDS = 5
+
+app = FastAPI()
+
+
+@app.on_event("startup")
+async def startup_event():
+    url = f"{SERVICE_DISCOVERY_URL}/services"
+    data = {
+        "serviceHost": SELF_HOST,
+        "servicePort": SELF_PORT,
+        "serviceType": "user"
+    }
+
+    response = requests.post(url, json=data)
+
+    if response.status_code != 200:
+        raise Exception(f"Failed to register with service discovery: {response.text}")
 
 
 @app.middleware("http")

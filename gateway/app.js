@@ -6,7 +6,7 @@ import swaggerJsdoc from 'swagger-jsdoc'
 import redis from 'redis'
 
 const app = express()
-const port = 8002
+const port = 8030
 const userService = 'http://localhost:8000'
 const tweetService = 'http://localhost:8001'
 

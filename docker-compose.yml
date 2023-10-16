@@ -24,7 +24,7 @@ services:
     ports:
       - "8040:8040"
 
-  user_service:
+  user_service_0:
     build: user
     ports:
       - "8000:8000"
@@ -36,9 +36,12 @@ services:
     environment:
       - DB_HOST=db
       - DB_PORT=5432
+      - SERVICE_DISCOVERY_HOST=service_discovery
+      - SERVICE_DISCOVERY_PORT=8040
+      - SELF_PORT=8000
 
-  tweet_service:
-    build: tweet
+  user_service_1:
+    build: user
     ports:
       - "8001:8001"
     depends_on:
@@ -46,16 +49,81 @@ services:
         condition: service_healthy
       service_discovery:
         condition: service_started
-      user_service:
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - SERVICE_DISCOVERY_HOST=service_discovery
+      - SERVICE_DISCOVERY_PORT=8040
+      - SELF_PORT=8001
+
+  user_service_2:
+    build: user
+    ports:
+      - "8002:8002"
+    depends_on:
+      db:
+        condition: service_healthy
+      service_discovery:
         condition: service_started
     environment:
       - DB_HOST=db
       - DB_PORT=5432
+      - SERVICE_DISCOVERY_HOST=service_discovery
+      - SERVICE_DISCOVERY_PORT=8040
+      - SELF_PORT=8002
+
+  tweet_service_0:
+    build: tweet
+    ports:
+      - "8010:8010"
+    depends_on:
+      db:
+        condition: service_healthy
+      service_discovery:
+        condition: service_started
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - SERVICE_DISCOVERY_HOST=service_discovery
+      - SERVICE_DISCOVERY_PORT=8040
+      - SELF_PORT=8010
+
+  tweet_service_1:
+    build: tweet
+    ports:
+      - "8011:8011"
+    depends_on:
+      db:
+        condition: service_healthy
+      service_discovery:
+        condition: service_started
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - SERVICE_DISCOVERY_HOST=service_discovery
+      - SERVICE_DISCOVERY_PORT=8040
+      - SELF_PORT=8011
+
+  tweet_service_2:
+    build: tweet
+    ports:
+      - "8012:8012"
+    depends_on:
+      db:
+        condition: service_healthy
+      service_discovery:
+        condition: service_started
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - SERVICE_DISCOVERY_HOST=service_discovery
+      - SERVICE_DISCOVERY_PORT=8040
+      - SELF_PORT=8012
 
   gateway:
     build: gateway
     ports:
-      - "8002:8002"
+      - "8030:8030"
     depends_on:
       - redis
       - service_discovery

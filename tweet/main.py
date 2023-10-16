@@ -11,18 +11,16 @@ from models import Tweet, Base
 from schemas import TweetIn, TweetOut, Message, HomeTimeline, UserTimeline
 from schemas import Tweet as schemasTweet
 
+
+# Database Connection Settings
 DB_HOST = os.getenv('DB_HOST') or 'localhost'
 DB_PORT = os.getenv('DB_PORT') or '5432'
 DATABASE_URL = f"postgresql://root:toor@{DB_HOST}:{DB_PORT}/tweetdb"
-USERSERVICE_URL = 'http://localhost:8000'
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base.metadata.create_all(bind=engine)
-
-app = FastAPI()
-
 
 def get_db():
     db = SessionLocal()
@@ -32,7 +30,36 @@ def get_db():
         db.close()
 
 
+# Service Discovery Connection Settings
+SERVICE_DISCOVERY_HOST = os.getenv('SERVICE_DISCOVERY_HOST') or 'localhost'
+SERVICE_DISCOVERY_PORT = os.getenv('SERVICE_DISCOVERY_PORT') or '8040'
+SERVICE_DISCOVERY_URL = f"http://{SERVICE_DISCOVERY_HOST}:{SERVICE_DISCOVERY_PORT}"
+
+
+# Self Settings
+SELF_HOST = os.getenv('HOSTNAME') or 'localhost'
+SELF_PORT = os.getenv('SELF_PORT') or '8001'
+
+
+USERSERVICE_URL = 'http://localhost:8000'
 TIMEOUT_SECONDS = 5
+
+app = FastAPI()
+
+
+@app.on_event("startup")
+async def startup_event():
+    url = f"{SERVICE_DISCOVERY_URL}/services"
+    data = {
+        "serviceHost": SELF_HOST,
+        "servicePort": SELF_PORT,
+        "serviceType": "tweet"
+    }
+
+    response = requests.post(url, json=data)
+
+    if response.status_code != 200:
+        raise Exception(f"Failed to register with service discovery: {response.text}")
 
 
 @app.middleware("http")
