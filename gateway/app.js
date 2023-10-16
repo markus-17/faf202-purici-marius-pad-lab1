@@ -7,8 +7,41 @@ import redis from 'redis'
 
 const app = express()
 const port = 8030
-const userService = 'http://localhost:8000'
-const tweetService = 'http://localhost:8001'
+
+// Service Discovery Connection Settings
+const serviceDiscoveryHost = process.env.SERVICE_DISCOVERY_HOST || 'localhost'
+const serviceDiscoveryPort = process.env.SERVICE_DISCOVERY_PORT || '8040'
+const serviceDiscoveryEndpoint = `http://${serviceDiscoveryHost}:${serviceDiscoveryPort}/services`
+
+// Load Balancing Logic for User Service
+let userServiceCounter = 0
+async function nextUserServiceReplica () {
+  const response = await axios.get(serviceDiscoveryEndpoint)
+  const userServices = response.data.userServices
+
+  userServiceCounter = userServiceCounter % userServices.length
+  const nextService = userServices[userServiceCounter]
+  userServiceCounter++
+
+  const { host, port } = nextService
+
+  return `http://${host}:${port}`
+}
+
+// Load Balancing Logic for Tweet Service
+let tweetServiceCounter = 0
+async function nextTweetServiceReplica () {
+  const response = await axios.get(serviceDiscoveryEndpoint)
+  const tweetServices = response.data.tweetServices
+
+  tweetServiceCounter = tweetServiceCounter % tweetServices.length
+  const nextService = tweetServices[tweetServiceCounter]
+  tweetServiceCounter++
+
+  const { host, port } = nextService
+
+  return `http://${host}:${port}`
+}
 
 app.use(bodyParser.json())
 
@@ -74,6 +107,7 @@ app.use((req, res, next) => {
 
 app.get('/users/timeout', async (req, res) => {
   try {
+    const userService = await nextUserServiceReplica()
     const response = await axios.get(`${userService}/users/timeout`, req.body)
     res.json(response.data)
   } catch (error) {
@@ -83,6 +117,7 @@ app.get('/users/timeout', async (req, res) => {
 
 app.get('/tweets/timeout', async (req, res) => {
   try {
+    const tweetService = await nextTweetServiceReplica()
     const response = await axios.get(`${tweetService}/tweets/timeout`, req.body)
     res.json(response.data)
   } catch (error) {
@@ -123,6 +158,7 @@ app.get('/tweets/timeout', async (req, res) => {
  */
 app.post('/users/register', async (req, res) => {
   try {
+    const userService = await nextUserServiceReplica()
     const response = await axios.post(`${userService}/users/register`, req.body)
     res.json(response.data)
   } catch (error) {
@@ -166,6 +202,7 @@ app.post('/users/register', async (req, res) => {
  */
 app.post('/users/:userId/follow', async (req, res) => {
   try {
+    const userService = await nextUserServiceReplica()
     const response = await axios.post(`${userService}/users/${req.params.userId}/follow`, req.body)
     res.json(response.data)
     await redisClient.set(`/users/${req.params.userId}/followings`, '')
@@ -213,6 +250,7 @@ app.post('/users/:userId/follow', async (req, res) => {
  */
 app.delete('/users/:userId/unfollow', async (req, res) => {
   try {
+    const userService = await nextUserServiceReplica()
     const response = await axios.delete(`${userService}/users/${req.params.userId}/unfollow`, { data: req.body })
     res.json(response.data)
     await redisClient.set(`/users/${req.params.userId}/followings`, '')
@@ -260,6 +298,7 @@ app.get('/users/:userId/followings', async (req, res) => {
   }
 
   try {
+    const userService = await nextUserServiceReplica()
     const response = await axios.get(`${userService}/users/${req.params.userId}/followings`)
     res.set({ 'X-Cache': 'MISS' }).json(response.data)
     await redisClient.set(`/users/${req.params.userId}/followings`, JSON.stringify(response.data))
@@ -304,6 +343,7 @@ app.get('/users/:userId/followers', async (req, res) => {
   }
 
   try {
+    const userService = await nextUserServiceReplica()
     const response = await axios.get(`${userService}/users/${req.params.userId}/followers`)
     res.set({ 'X-Cache': 'MISS' }).json(response.data)
     await redisClient.set(`/users/${req.params.userId}/followers`, JSON.stringify(response.data))
@@ -354,6 +394,7 @@ app.get('/users/:userId/followers', async (req, res) => {
  */
 app.post('/tweets', async (req, res) => {
   try {
+    const tweetService = await nextTweetServiceReplica()
     const response = await axios.post(`${tweetService}/tweets`, req.body)
     res.json(response.data)
   } catch (error) {
@@ -389,6 +430,7 @@ app.post('/tweets', async (req, res) => {
  */
 app.delete('/tweets/:tweetId', async (req, res) => {
   try {
+    const tweetService = await nextTweetServiceReplica()
     const response = await axios.delete(`${tweetService}/tweets/${req.params.tweetId}`)
     res.json(response.data)
   } catch (error) {
@@ -439,6 +481,7 @@ app.delete('/tweets/:tweetId', async (req, res) => {
  */
 app.get('/tweets/homeTimeline/:userId', async (req, res) => {
   try {
+    const tweetService = await nextTweetServiceReplica()
     const response = await axios.get(`${tweetService}/tweets/homeTimeline/${req.params.userId}`)
     res.json(response.data)
   } catch (error) {
@@ -487,6 +530,7 @@ app.get('/tweets/homeTimeline/:userId', async (req, res) => {
  */
 app.get('/tweets/userTimeline/:userId', async (req, res) => {
   try {
+    const tweetService = await nextTweetServiceReplica()
     const response = await axios.get(`${tweetService}/tweets/userTimeline/${req.params.userId}`)
     res.json(response.data)
   } catch (error) {

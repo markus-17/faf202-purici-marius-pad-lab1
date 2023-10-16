@@ -131,6 +131,8 @@ services:
       - REDIS_HOST=redis
       - RATE_LIMITER_LIMIT=3
       - RATE_LIMITER_WINDOW_S=10
+      - SERVICE_DISCOVERY_HOST=service_discovery
+      - SERVICE_DISCOVERY_PORT=8040
 
   redis:
     image: redis:7.2
