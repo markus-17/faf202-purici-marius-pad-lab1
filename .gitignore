@@ -161,3 +161,4 @@ cython_debug/
 
 postgres_data/
 node_modules/
+test.db
