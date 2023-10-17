@@ -43,6 +43,32 @@ async function nextTweetServiceReplica () {
   return `http://${host}:${port}`
 }
 
+// Circuit Breaker Logic
+const TASK_TIMEOUT_MS = (process.env.TASK_TIMEOUT ? parseInt(process.env.TASK_TIMEOUT) : 10) * 1000
+const failureTimestamps = {}
+function logServiceFailure (serviceHost, serviceType) {
+  const timestamp = Date.now()
+
+  if (failureTimestamps[serviceHost] === undefined) {
+    failureTimestamps[serviceHost] = [timestamp]
+    return
+  }
+
+  failureTimestamps[serviceHost].push(timestamp)
+
+  if (failureTimestamps[serviceHost].length < 3) {
+    return
+  }
+
+  failureTimestamps[serviceHost] = failureTimestamps[serviceHost].slice(-3)
+  const firstFailureTimestamp = failureTimestamps[serviceHost][0]
+  const lastFailureTimestamp = failureTimestamps[serviceHost][2]
+
+  if ((lastFailureTimestamp - firstFailureTimestamp) <= TASK_TIMEOUT_MS * 3.5) {
+    console.log(`CIRCUIT BREAKER: Service of type ${serviceType} located at ${serviceHost} is UNHEALTHY!!!`)
+  }
+}
+
 app.use(bodyParser.json())
 
 const redisHost = process.env.REDIS_HOST || 'localhost'
@@ -106,21 +132,35 @@ app.use((req, res, next) => {
 })
 
 app.get('/users/timeout', async (req, res) => {
+  const userService = await nextUserServiceReplica()
+
   try {
-    const userService = await nextUserServiceReplica()
     const response = await axios.get(`${userService}/users/timeout`, req.body)
     res.json(response.data)
   } catch (error) {
+    if (error.code === 'ECONNABORTED') {
+      logServiceFailure(userService, 'user')
+      res.status(500).json({ message: `User Service (${userService}) Call Failed` })
+      return
+    }
+
     res.status(error.response.status).json(error.response.data)
   }
 })
 
 app.get('/tweets/timeout', async (req, res) => {
+  const tweetService = await nextTweetServiceReplica()
+
   try {
-    const tweetService = await nextTweetServiceReplica()
     const response = await axios.get(`${tweetService}/tweets/timeout`, req.body)
     res.json(response.data)
   } catch (error) {
+    if (error.code === 'ECONNABORTED') {
+      logServiceFailure(tweetService, 'tweet')
+      res.status(500).json({ message: `Tweet Service (${tweetService}) Call Failed` })
+      return
+    }
+
     res.status(error.response.status).json(error.response.data)
   }
 })
@@ -157,11 +197,18 @@ app.get('/tweets/timeout', async (req, res) => {
  *         description: Username already registered
  */
 app.post('/users/register', async (req, res) => {
+  const userService = await nextUserServiceReplica()
+
   try {
-    const userService = await nextUserServiceReplica()
-    const response = await axios.post(`${userService}/users/register`, req.body)
+    const response = await axios.post(`${userService}/users/register`, req.body, { timeout: 1_000 })
     res.json(response.data)
   } catch (error) {
+    if (error.code === 'ECONNABORTED') {
+      logServiceFailure(userService, 'user')
+      res.status(500).json({ message: `User Service (${userService}) Call Failed` })
+      return
+    }
+
     res.status(error.response.status).json(error.response.data)
   }
 })
@@ -201,15 +248,22 @@ app.post('/users/register', async (req, res) => {
  *         description: User not found or User to follow not found
  */
 app.post('/users/:userId/follow', async (req, res) => {
+  const userService = await nextUserServiceReplica()
+
   try {
-    const userService = await nextUserServiceReplica()
-    const response = await axios.post(`${userService}/users/${req.params.userId}/follow`, req.body)
+    const response = await axios.post(`${userService}/users/${req.params.userId}/follow`, req.body, { timeout: 1_000 })
     res.json(response.data)
     await redisClient.set(`/users/${req.params.userId}/followings`, '')
     if (req.body.followUserId !== null) {
       await redisClient.set(`/users/${req.body.followUserId}/followers`, '')
     }
   } catch (error) {
+    if (error.code === 'ECONNABORTED') {
+      logServiceFailure(userService, 'user')
+      res.status(500).json({ message: `User Service (${userService}) Call Failed` })
+      return
+    }
+
     res.status(error.response.status).json(error.response.data)
   }
 })
@@ -249,15 +303,22 @@ app.post('/users/:userId/follow', async (req, res) => {
  *         description: User not found, User to unfollow not found, or No follow found
  */
 app.delete('/users/:userId/unfollow', async (req, res) => {
+  const userService = await nextUserServiceReplica()
+
   try {
-    const userService = await nextUserServiceReplica()
-    const response = await axios.delete(`${userService}/users/${req.params.userId}/unfollow`, { data: req.body })
+    const response = await axios.delete(`${userService}/users/${req.params.userId}/unfollow`, { data: req.body, timeout: 1_000 })
     res.json(response.data)
     await redisClient.set(`/users/${req.params.userId}/followings`, '')
     if (req.body.unfollowUserId !== null) {
       await redisClient.set(`/users/${req.body.unfollowUserId}/followers`, '')
     }
   } catch (error) {
+    if (error.code === 'ECONNABORTED') {
+      logServiceFailure(userService, 'user')
+      res.status(500).json({ message: `User Service (${userService}) Call Failed` })
+      return
+    }
+
     res.status(error.response.status).json(error.response.data)
   }
 })
@@ -297,12 +358,19 @@ app.get('/users/:userId/followings', async (req, res) => {
     return
   }
 
+  const userService = await nextUserServiceReplica()
+
   try {
-    const userService = await nextUserServiceReplica()
-    const response = await axios.get(`${userService}/users/${req.params.userId}/followings`)
+    const response = await axios.get(`${userService}/users/${req.params.userId}/followings`, { timeout: 1_000 })
     res.set({ 'X-Cache': 'MISS' }).json(response.data)
     await redisClient.set(`/users/${req.params.userId}/followings`, JSON.stringify(response.data))
   } catch (error) {
+    if (error.code === 'ECONNABORTED') {
+      logServiceFailure(userService, 'user')
+      res.status(500).json({ message: `User Service (${userService}) Call Failed` })
+      return
+    }
+
     res.status(error.response.status).json(error.response.data)
   }
 })
@@ -342,12 +410,19 @@ app.get('/users/:userId/followers', async (req, res) => {
     return
   }
 
+  const userService = await nextUserServiceReplica()
+
   try {
-    const userService = await nextUserServiceReplica()
-    const response = await axios.get(`${userService}/users/${req.params.userId}/followers`)
+    const response = await axios.get(`${userService}/users/${req.params.userId}/followers`, { timeout: 1_000 })
     res.set({ 'X-Cache': 'MISS' }).json(response.data)
     await redisClient.set(`/users/${req.params.userId}/followers`, JSON.stringify(response.data))
   } catch (error) {
+    if (error.code === 'ECONNABORTED') {
+      logServiceFailure(userService, 'user')
+      res.status(500).json({ message: `User Service (${userService}) Call Failed` })
+      return
+    }
+
     res.status(error.response.status).json(error.response.data)
   }
 })
@@ -393,11 +468,18 @@ app.get('/users/:userId/followers', async (req, res) => {
  *                   description: The timestamp when the tweet was created.
  */
 app.post('/tweets', async (req, res) => {
+  const tweetService = await nextTweetServiceReplica()
+
   try {
-    const tweetService = await nextTweetServiceReplica()
-    const response = await axios.post(`${tweetService}/tweets`, req.body)
+    const response = await axios.post(`${tweetService}/tweets`, req.body, { timeout: 1_000 })
     res.json(response.data)
   } catch (error) {
+    if (error.code === 'ECONNABORTED') {
+      logServiceFailure(tweetService, 'tweet')
+      res.status(500).json({ message: `Tweet Service (${tweetService}) Call Failed` })
+      return
+    }
+
     res.status(error.response.status).json(error.response.data)
   }
 })
@@ -429,11 +511,18 @@ app.post('/tweets', async (req, res) => {
  *         description: Tweet not found.
  */
 app.delete('/tweets/:tweetId', async (req, res) => {
+  const tweetService = await nextTweetServiceReplica()
+
   try {
-    const tweetService = await nextTweetServiceReplica()
-    const response = await axios.delete(`${tweetService}/tweets/${req.params.tweetId}`)
+    const response = await axios.delete(`${tweetService}/tweets/${req.params.tweetId}`, { timeout: 1_000 })
     res.json(response.data)
   } catch (error) {
+    if (error.code === 'ECONNABORTED') {
+      logServiceFailure(tweetService, 'tweet')
+      res.status(500).json({ message: `Tweet Service (${tweetService}) Call Failed` })
+      return
+    }
+
     res.status(error.response.status).json(error.response.data)
   }
 })
@@ -480,11 +569,18 @@ app.delete('/tweets/:tweetId', async (req, res) => {
  *         description: Error occurred while fetching followings.
  */
 app.get('/tweets/homeTimeline/:userId', async (req, res) => {
+  const tweetService = await nextTweetServiceReplica()
+
   try {
-    const tweetService = await nextTweetServiceReplica()
-    const response = await axios.get(`${tweetService}/tweets/homeTimeline/${req.params.userId}`)
+    const response = await axios.get(`${tweetService}/tweets/homeTimeline/${req.params.userId}`, { timeout: 1_000 })
     res.json(response.data)
   } catch (error) {
+    if (error.code === 'ECONNABORTED') {
+      logServiceFailure(tweetService, 'tweet')
+      res.status(500).json({ message: `Tweet Service (${tweetService}) Call Failed` })
+      return
+    }
+
     res.status(error.response.status).json(error.response.data)
   }
 })
@@ -529,11 +625,18 @@ app.get('/tweets/homeTimeline/:userId', async (req, res) => {
  *                         description: The timestamp when the tweet was created.
  */
 app.get('/tweets/userTimeline/:userId', async (req, res) => {
+  const tweetService = await nextTweetServiceReplica()
+
   try {
-    const tweetService = await nextTweetServiceReplica()
-    const response = await axios.get(`${tweetService}/tweets/userTimeline/${req.params.userId}`)
+    const response = await axios.get(`${tweetService}/tweets/userTimeline/${req.params.userId}`, { timeout: 1_000 })
     res.json(response.data)
   } catch (error) {
+    if (error.code === 'ECONNABORTED') {
+      logServiceFailure(tweetService, 'tweet')
+      res.status(500).json({ message: `Tweet Service (${tweetService}) Call Failed` })
+      return
+    }
+
     res.status(error.response.status).json(error.response.data)
   }
 })

@@ -133,6 +133,7 @@ services:
       - RATE_LIMITER_WINDOW_S=10
       - SERVICE_DISCOVERY_HOST=service_discovery
       - SERVICE_DISCOVERY_PORT=8040
+      - TASK_TIMEOUT=10
 
   redis:
     image: redis:7.2
