@@ -1,3 +1,11 @@
+# How to run this project?
+
+1) `git clone` this repository.
+2) With a command line navigate to the `faf202-purici-marius-pad-lab1/`.
+3) Run the command `docker compose up --build`.
+4) The `gateway` service will be running on port `8030`. Also it has Swagger configured, therefore all the routes will be available in there.
+
+
 # Twitter like Social Media platform - Post Updates, Subscribe to people you know, Receive their updates
 
 This project aims to implement a simplified version of a Twitter-like system using a microservices architecture. The system is composed of two main services: the User Service, which handles user registration, authentication, and follow management; and the Tweet Service, which handles tweet creation, deletion, and retrieval of home and user timelines. The services are implemented in Python using the FastAPI framework, and they communicate with each other via RESTful APIs. The system also includes an API Gateway and a Service Discovery component, both implemented in JavaScript with Express.js. The API Gateway routes client requests to the appropriate service, while the Service Discovery component maintains a record of the network locations of service instances.
