@@ -10,18 +10,29 @@ database "User DB" as UDB
 [Tweet Service (Python)] as TS
 database "Tweet DB" as TDB
 
-US <--> TS : API
+package "ELK Stack" {
+  [Logstash] as LS
+  database "Elastic Storage" as ES
+  [Kibana] as K
+}
+
+US <-right-> TS
 
 AG -left- CACHE
 AG --> US : API
 AG --> TS : API
+AG .right.> SD
+
+SD <.. US
+SD <.. TS
+
+TS -down-> LS  : Logs
+US -right-> LS : Logs
 
 US -down- UDB
 TS -down- TDB
 
-AG .> SD
-
-SD <.. US
-SD <.. TS
+LS --> ES : Processed Logs
+ES --> K : Data
 
 @enduml

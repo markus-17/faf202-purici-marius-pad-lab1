@@ -3,8 +3,11 @@
 1) `git clone` this repository.
 2) With a command line navigate to the `faf202-purici-marius-pad-lab1/`.
 3) Run the command `docker compose up` (Please wait 30seconds, the user service and the tweet service wait for the database to be in healthy state before starting).
-4) The `gateway` service will be running on port `8030`. Also it has Swagger configured, therefore all the routes will be available in there. (Visit Swagger page at `localhost:8030/docs`)
+4) The `gateway` service will be running on port `8030`. Also it has Swagger configured, therefore all the endpoints will be available in there. (Visit Swagger page at `localhost:8030/docs`)
 
+# Updated System Architecture for Lab 2
+
+![Diagram](./diagram2.png)
 
 # Twitter like Social Media platform - Post Updates, Subscribe to people you know, Receive their updates
 
