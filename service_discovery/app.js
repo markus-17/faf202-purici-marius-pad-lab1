@@ -24,15 +24,20 @@ app.post('/services', (req, res) => {
   const newService = { host: serviceHost, port: servicePort }
 
   if (serviceType === 'user') {
-    userServiceReplicas.push(newService)
+    if (!userServiceReplicas.some(el => el.host === newService.host && el.port === newService.port)) {
+      userServiceReplicas.push(newService)
+      console.log(`Service added successfully { host: ${serviceHost}, port: ${servicePort}, type: ${serviceType} }`)
+    }
   } else if (serviceType === 'tweet') {
-    tweetServiceReplicas.push(newService)
+    if (!tweetServiceReplicas.some(el => el.host === newService.host && el.port === newService.port)) {
+      tweetServiceReplicas.push(newService)
+      console.log(`Service added successfully { host: ${serviceHost}, port: ${servicePort}, type: ${serviceType} }`)
+    }
   } else {
     console.log(`Failed attempt to add service { host: ${serviceHost}, port: ${servicePort}, type: ${serviceType} }`)
     return res.status(400).send({ message: 'Invalid serviceType. Expected "user" or "tweet".' })
   }
 
-  console.log(`Service added successfully { host: ${serviceHost}, port: ${servicePort}, type: ${serviceType} }`)
   res.status(200).send({ message: 'Service added successfully' })
 })
 

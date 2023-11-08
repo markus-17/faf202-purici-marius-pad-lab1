@@ -20,12 +20,14 @@ services:
       retries: 5
 
   service_discovery:
-    image: markus17/service_discovery:latest
+    # image: markus17/service_discovery:latest
+    build: service_discovery
     ports:
       - "8040:8040"
 
   user_service_0:
-    image: markus17/user:latest
+    # image: markus17/user:latest
+    build: user
     ports:
       - "8000:8000"
     depends_on:
@@ -41,7 +43,8 @@ services:
       - SELF_PORT=8000
 
   user_service_1:
-    image: markus17/user:latest
+    # image: markus17/user:latest
+    build: user
     ports:
       - "8001:8001"
     depends_on:
@@ -57,7 +60,8 @@ services:
       - SELF_PORT=8001
 
   user_service_2:
-    image: markus17/user:latest
+    # image: markus17/user:latest
+    build: user
     ports:
       - "8002:8002"
     depends_on:
@@ -73,7 +77,8 @@ services:
       - SELF_PORT=8002
 
   tweet_service_0:
-    image: markus17/tweet:latest
+    # image: markus17/tweet:latest
+    build: tweet
     ports:
       - "8010:8010"
     depends_on:
@@ -89,7 +94,8 @@ services:
       - SELF_PORT=8010
 
   tweet_service_1:
-    image: markus17/tweet:latest
+    # image: markus17/tweet:latest
+    build: tweet
     ports:
       - "8011:8011"
     depends_on:
@@ -105,7 +111,8 @@ services:
       - SELF_PORT=8011
 
   tweet_service_2:
-    image: markus17/tweet:latest
+    # image: markus17/tweet:latest
+    build: tweet
     ports:
       - "8012:8012"
     depends_on:
@@ -121,7 +128,8 @@ services:
       - SELF_PORT=8012
 
   gateway:
-    image: markus17/gateway:latest
+    # image: markus17/gateway:latest
+    build: gateway
     ports:
       - "8030:8030"
     depends_on:
@@ -129,8 +137,8 @@ services:
       - service_discovery
     environment:
       - REDIS_HOST=redis
-      - RATE_LIMITER_LIMIT=3
-      - RATE_LIMITER_WINDOW_S=10
+      - RATE_LIMITER_LIMIT=6
+      - RATE_LIMITER_WINDOW_S=3
       - SERVICE_DISCOVERY_HOST=service_discovery
       - SERVICE_DISCOVERY_PORT=8040
       - TASK_TIMEOUT=10
