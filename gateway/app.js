@@ -47,7 +47,7 @@ async function callService (serviceType, requestMethod, requestUrl, reqBody) {
         url: `${nextServiceUrl}/${requestUrl}`,
         data: reqBody
       })
-      return { statusCode: 200, responseBody: serviceResponse.data }
+      return { statusCode: 200, responseBody: serviceResponse.data, serviceUrl: nextServiceUrl }
     } catch (error) {
       if (error.code === 'ENOTFOUND') {
         console.log(`Failed to call service of type ${serviceType} at ${nextServiceUrl}`)
@@ -531,6 +531,73 @@ app.get('/tweets/homeTimeline/:userId', async (req, res) => {
 app.get('/tweets/userTimeline/:userId', async (req, res) => {
   const { statusCode, responseBody } = await callService('tweet', 'get', `tweets/userTimeline/${req.params.userId}`, req.body)
   res.status(statusCode).json(responseBody)
+})
+
+/**
+ * @swagger
+ * /users/{userId}:
+ *  delete:
+ *    summary: Deletes a user and their tweets -- This is the endpoint which implements two phase commit --
+ *    description: This endpoint deletes a user and all their tweets. It first calls the User Service to delete the user, then calls the Tweet Service to delete the user's tweets. If both operations are successful, it commits the changes.
+ *    parameters:
+ *      - in: path
+ *        name: userId
+ *        required: true
+ *        description: The ID of the user to be deleted.
+ *        schema:
+ *          type: integer
+ *    responses:
+ *      '200':
+ *        description: The user and their tweets were deleted successfully.
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                message:
+ *                  type: string
+ *                  example: "User 1 and their Tweets were deleted successfully"
+ *      '500':
+ *        description: An error occurred while deleting the user or their tweets.
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                message:
+ *                  type: string
+ *                  example: "Operation on User Service failed with Status Code 500"
+ */
+app.delete('/users/:userId', async (req, res) => {
+  const userId = req.params.userId
+
+  const callUserServiceResult = await callService('user', 'delete', `users/${userId}/first`, req.body)
+  const { statusCode: userStatusCode } = callUserServiceResult
+
+  if (userStatusCode !== 200) {
+    res.status(500).json({ message: `Operation on User Service failed with Status Code ${userStatusCode}` })
+    return
+  }
+
+  const { responseBody: userResponseBody, serviceUrl: userServiceUrl } = callUserServiceResult
+  const { session: userSessionId } = userResponseBody
+
+  const callTweetServiceResult = await callService('tweet', 'delete', `tweets/users/${userId}/first`, req.body)
+  const { statusCode: tweetStatusCode } = callTweetServiceResult
+
+  if (tweetStatusCode !== 200) {
+    await axios.get(`${userServiceUrl}/users/sessions/${userSessionId}/rollback`)
+    res.status(500).json({ message: `Operation on Tweet Service failed with Status Code ${tweetStatusCode}` })
+    return
+  }
+
+  const { responseBody: tweetResponseBody, serviceUrl: tweetServiceUrl } = callTweetServiceResult
+  const { session: tweetSessionId } = tweetResponseBody
+
+  await axios.get(`${userServiceUrl}/users/sessions/${userSessionId}/commit`)
+  await axios.get(`${tweetServiceUrl}/tweets/sessions/${tweetSessionId}/commit`)
+
+  res.status(200).json({ message: `User ${userId} and their Tweets were deleted successfully` })
 })
 
 // Start the gateway server

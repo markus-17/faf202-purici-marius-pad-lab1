@@ -166,3 +166,56 @@ def get_followers(userId: int, db: Session = Depends(get_db)):
     followers_ids = [follower.follower_id for follower in followers]
 
     return {"followers": followers_ids}
+
+
+import uuid
+sessions = {}
+
+
+@app.delete("/users/{userId}/first")
+def erase_user_first_phase(userId: int):
+    session = SessionLocal()
+    session.begin()
+    user = session.query(User).filter(User.id == userId).first()
+
+    if not user:
+        session.commit()
+        session.close()
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    session.delete(user)
+    session_id = str(uuid.uuid4())
+    sessions[session_id] = session
+
+    return {"session": session_id}
+
+
+@app.get("/users/sessions/{sessionId}/commit")
+def erase_user_commit(sessionId: str):
+    session = sessions.pop(sessionId, None)
+
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session.commit()
+    session.close()
+
+    return {"message": f"Session {sessionId} committed successfully"}
+
+
+@app.get("/users/sessions/{sessionId}/rollback")
+def erase_user_rollback(sessionId: str):
+    session = sessions.pop(sessionId, None)
+
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session.rollback()
+    session.close()
+
+    return {"message": f"Session {sessionId} was rolled back"}
+
+
+@app.get("/users/sessions")
+def get_sessions():
+    return {"sessions": list(sessions.keys())}

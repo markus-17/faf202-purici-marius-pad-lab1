@@ -152,3 +152,51 @@ def get_user_timeline(userId: int, db: Session = Depends(get_db)):
         created_at=tweet.created_at
     ) for tweet in tweets]
     return UserTimeline(tweets=tweets)
+
+
+import uuid
+sessions = {}
+
+
+@app.delete("/tweets/users/{userId}/first")
+def erase_user_tweets_first_phase(userId: int):
+    session = SessionLocal()
+    session.begin()
+    
+    session.query(Tweet).filter(Tweet.user_id == userId).delete()
+
+    session_id = str(uuid.uuid4())
+    sessions[session_id] = session
+
+    return {"session": session_id}
+
+
+@app.get("/tweets/sessions/{sessionId}/commit")
+def erase_user_tweets_commit(sessionId: str):
+    session = sessions.pop(sessionId, None)
+
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session.commit()
+    session.close()
+
+    return {"message": f"Session {sessionId} committed successfully"}
+
+
+@app.get("/tweets/sessions/{sessionId}/rollback")
+def erase_user_tweets_rollback(sessionId: str):
+    session = sessions.pop(sessionId, None)
+
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session.rollback()
+    session.close()
+
+    return {"message": f"Session {sessionId} was rolled back"}
+
+
+@app.get("/tweets/sessions")
+def get_sessions():
+    return {"sessions": list(sessions.keys())}

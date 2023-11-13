@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
 -- Create a followings table
 CREATE TABLE followings (
     id SERIAL PRIMARY KEY,
-    follower_id INTEGER REFERENCES users(id),
-    followed_id INTEGER REFERENCES users(id)
+    follower_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    followed_id INTEGER REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Insert some data into the tables

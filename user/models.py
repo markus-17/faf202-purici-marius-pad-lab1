@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -17,8 +17,8 @@ class Followings(Base):
     __tablename__ = "followings"
 
     id = Column(Integer, primary_key=True)
-    follower_id = Column(Integer, ForeignKey('users.id'))
-    followed_id = Column(Integer, ForeignKey('users.id'))
+    follower_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'))
+    followed_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'))
 
-    follower = relationship("User", foreign_keys=[follower_id])
-    followed = relationship("User", foreign_keys=[followed_id])
+    follower = relationship("User", backref=backref("followings_as_follower", cascade="all, delete-orphan"), foreign_keys=[follower_id])
+    followed = relationship("User", backref=backref("followings_as_followed", cascade="all, delete-orphan"), foreign_keys=[followed_id])
