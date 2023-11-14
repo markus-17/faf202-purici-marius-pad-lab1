@@ -3,7 +3,7 @@ import asyncio
 
 import requests
 from fastapi import FastAPI, Depends, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -67,6 +67,38 @@ async def timeout_middleware(request, call_next):
         return response
     except asyncio.TimeoutError:
         return JSONResponse(status_code=408, content={"error": "Request timed out"})
+
+
+status_codes = {}
+
+
+@app.middleware("http")
+async def update_metrics(request, call_next):
+    response = await call_next(request)
+    status_code = response.status_code
+    
+    if status_code in status_codes:
+        status_codes[status_code] += 1
+    else:
+        status_codes[status_code] = 1
+
+    return response
+
+
+@app.get("/metrics", response_class=PlainTextResponse)
+def metrics():
+    list = [
+        '# HELP http_requests_total The total number of HTTP requests.',
+        '# TYPE http_requests_total counter'
+    ]
+
+    if len(status_codes) == 0:
+        status_codes[200] = 0
+
+    for status_code, counter in status_codes.items():
+        list.append(f'http_requests_total{{code="{status_code}"}} {counter}')
+
+    return '\n'.join(list)
 
 
 @app.get("/tweets/timeout")

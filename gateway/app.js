@@ -8,6 +8,45 @@ import redis from 'redis'
 const app = express()
 const port = 8030
 
+// Metrics endpoint and helper functions for Prometheus
+const statusCodes = new Map()
+
+function increaseStatusCodes (statusCode) {
+  if (statusCodes.get(statusCode) === undefined) {
+    statusCodes.set(statusCode, 0)
+  }
+
+  statusCodes.set(statusCode, statusCodes.get(statusCode) + 1)
+}
+
+function retrieveMetricsText () {
+  const array = [
+    '# HELP http_requests_total The total number of HTTP requests.',
+    '# TYPE http_requests_total counter'
+  ]
+
+  if (statusCodes.size === 0) {
+    statusCodes.set(200, 0)
+  }
+
+  const keys = statusCodes.keys()
+
+  for (const key of keys) {
+    array.push(`http_requests_total{code="${key}"} ${statusCodes.get(key)}`)
+  }
+
+  return array.join('\n')
+}
+
+app.use((req, res, next) => {
+  res.on('finish', () => increaseStatusCodes(res.statusCode))
+  next()
+})
+
+app.get('/metrics', (req, res) => {
+  res.status(200).send(retrieveMetricsText())
+})
+
 // Service Discovery Connection Settings
 const serviceDiscoveryHost = process.env.SERVICE_DISCOVERY_HOST || 'localhost'
 const serviceDiscoveryPort = process.env.SERVICE_DISCOVERY_PORT || '8040'

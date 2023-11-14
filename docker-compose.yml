@@ -148,6 +148,15 @@ services:
     ports:
       - "6379:6379"
 
+  prometheus:
+    image: prom/prometheus:v2.47.2
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command: 
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - 9090:9090
+
 volumes:
   postgres_data:
     driver: local

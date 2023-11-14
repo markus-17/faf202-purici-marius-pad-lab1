@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090', 'service_discovery:8040', 'gateway:8030', 'tweet_service_0:8010', 'tweet_service_1:8011', 'tweet_service_2:8012', 'user_service_0:8000', 'user_service_1:8001', 'user_service_2:8002']
