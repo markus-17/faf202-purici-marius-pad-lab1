@@ -69,18 +69,25 @@ async def timeout_middleware(request, call_next):
         return JSONResponse(status_code=408, content={"error": "Request timed out"})
 
 
-status_codes = {}
+status_codes = {
+  200: 0,
+  400: 0,
+  304: 0,
+  404: 0,
+  500: 0
+}
 
 
 @app.middleware("http")
 async def update_metrics(request, call_next):
     response = await call_next(request)
     status_code = response.status_code
-    
-    if status_code in status_codes:
-        status_codes[status_code] += 1
-    else:
-        status_codes[status_code] = 1
+
+    if request.url.path != '/metrics':
+        if status_code in status_codes:
+            status_codes[status_code] += 1
+        else:
+            status_codes[status_code] = 1
 
     return response
 

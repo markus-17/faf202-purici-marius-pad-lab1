@@ -9,7 +9,13 @@ const app = express()
 const port = 8030
 
 // Metrics endpoint and helper functions for Prometheus
-const statusCodes = new Map()
+const statusCodes = new Map([
+  [200, 0],
+  [400, 0],
+  [304, 0],
+  [404, 0],
+  [500, 0]
+])
 
 function increaseStatusCodes (statusCode) {
   if (statusCodes.get(statusCode) === undefined) {
@@ -25,10 +31,6 @@ function retrieveMetricsText () {
     '# TYPE http_requests_total counter'
   ]
 
-  if (statusCodes.size === 0) {
-    statusCodes.set(200, 0)
-  }
-
   const keys = statusCodes.keys()
 
   for (const key of keys) {
@@ -39,7 +41,9 @@ function retrieveMetricsText () {
 }
 
 app.use((req, res, next) => {
-  res.on('finish', () => increaseStatusCodes(res.statusCode))
+  if (req.path !== '/metrics') {
+    res.on('finish', () => increaseStatusCodes(res.statusCode))
+  }
   next()
 })
 
