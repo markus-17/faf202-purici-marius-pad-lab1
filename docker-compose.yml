@@ -133,8 +133,10 @@ services:
     ports:
       - "8030:8030"
     depends_on:
-      - redis
-      - service_discovery
+      db:
+        condition: service_healthy
+      service_discovery:
+        condition: service_started
     environment:
       - REDIS_HOST=redis
       - RATE_LIMITER_LIMIT=6
@@ -143,10 +145,72 @@ services:
       - SERVICE_DISCOVERY_PORT=8040
       - TASK_TIMEOUT=10
 
-  redis:
+  redis-node-1:
     image: redis:7.2
     ports:
-      - "6379:6379"
+      - 7000:7000
+    hostname: redis-node-1
+    volumes:
+      - ./redis/7000:/redis
+    command: redis-server /redis/redis.conf
+
+  redis-node-2:
+    image: redis:7.2
+    ports:
+      - 7001:7001
+    hostname: redis-node-2
+    volumes:
+      - ./redis/7001:/redis
+    command: redis-server /redis/redis.conf
+
+  redis-node-3:
+    image: redis:7.2
+    ports:
+      - 7002:7002
+    hostname: redis-node-3
+    volumes:
+      - ./redis/7002:/redis
+    command: redis-server /redis/redis.conf
+
+  redis-node-4:
+    image: redis:7.2
+    ports:
+      - 7003:7003
+    hostname: redis-node-4
+    volumes:
+      - ./redis/7003:/redis
+    command: redis-server /redis/redis.conf
+
+  redis-node-5:
+    image: redis:7.2
+    ports:
+      - 7004:7004
+    hostname: redis-node-5
+    volumes:
+      - ./redis/7004:/redis
+    command: redis-server /redis/redis.conf
+
+  redis-node-6:
+    image: redis:7.2
+    ports:
+      - 7005:7005
+    hostname: redis-node-6
+    volumes:
+      - ./redis/7005:/redis
+    command: redis-server /redis/redis.conf
+
+  redis-cluster-creator:
+    image: redis:7.2
+    ports:
+      - 6999:6999
+    command: redis-cli -p 7000 --cluster create redis-node-1:7000 redis-node-2:7001 redis-node-3:7002 redis-node-4:7003 redis-node-5:7004 redis-node-6:7005 --cluster-replicas 1 --cluster-yes
+    depends_on:
+      - redis-node-1
+      - redis-node-2
+      - redis-node-3
+      - redis-node-4
+      - redis-node-5
+      - redis-node-6
 
   prometheus:
     image: prom/prometheus:v2.47.2
