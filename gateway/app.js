@@ -638,6 +638,9 @@ app.delete('/users/:userId', async (req, res) => {
   await axios.get(`${userServiceUrl}/users/sessions/${userSessionId}/commit`)
   await axios.get(`${tweetServiceUrl}/tweets/sessions/${tweetSessionId}/commit`)
 
+  await redisClient.set(`/users/${userId}/followings`, '')
+  await redisClient.set(`/users/${userId}/followers`, '')
+
   res.status(200).json({ message: `User ${userId} and their Tweets were deleted successfully` })
 })
 
